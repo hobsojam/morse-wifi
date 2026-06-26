@@ -48,12 +48,28 @@ class TestSpeakerInterface:
 
 
 class TestSpeakerDefaults:
-    def test_preferred_format_is_mp3(self):
+    def test_preferred_format_is_wav(self):
         class Concrete(Speaker):
             def discover(self): return []
             def play_url(self, s, u): pass
             def stop(self, s): pass
-        assert Concrete().preferred_format == "mp3"
+        assert Concrete().preferred_format == "wav"
+
+    def test_get_transport_state_default_is_unknown(self):
+        class Concrete(Speaker):
+            def discover(self): return []
+            def play_url(self, s, u): pass
+            def stop(self, s): pass
+        info = SpeakerInfo(id="x", name="X")
+        assert Concrete().get_transport_state(info) == "unknown"
+
+    def test_get_debug_info_default_is_empty(self):
+        class Concrete(Speaker):
+            def discover(self): return []
+            def play_url(self, s, u): pass
+            def stop(self, s): pass
+        info = SpeakerInfo(id="x", name="X")
+        assert Concrete().get_debug_info(info) == {}
 
 
 class TestDlnaBackend:

@@ -3,8 +3,6 @@ import math
 import struct
 import wave
 
-import lameenc
-
 SAMPLE_RATE = 44100
 TONE_FREQ = 700
 DEFAULT_WPM = 20
@@ -41,7 +39,6 @@ def text_to_morse(text: str) -> str:
         elif code is not None:
             parts.append(code)
     result = ' '.join(parts)
-    # collapse duplicate word gaps that may arise from multiple spaces
     while ' / /' in result:
         result = result.replace(' / /', ' /')
     return result.strip('/ ').strip()
@@ -86,7 +83,6 @@ def _generate_samples(morse: str, wpm: int) -> list[int]:
 
     def tone(duration: float) -> list[int]:
         n = int(SAMPLE_RATE * duration)
-        # apply a short linear fade (5ms) to avoid clicks
         fade = min(int(SAMPLE_RATE * 0.005), n // 4)
         samples = []
         for i in range(n):
@@ -121,14 +117,17 @@ def _generate_samples(morse: str, wpm: int) -> list[int]:
 
 
 def _inject_riff_info(wav_bytes: bytes, title: str) -> bytes:
-    title_bytes = title.encode("utf-8") + b"\x00"
-    if len(title_bytes) % 2:
-        title_bytes += b"\x00"
-    inam = b"INAM" + struct.pack("<I", len(title_bytes)) + title_bytes
-    info = b"LIST" + struct.pack("<I", 4 + len(inam)) + b"INFO" + inam
-    pos = wav_bytes.index(b"data")
-    merged = wav_bytes[:pos] + info + wav_bytes[pos:]
-    return merged[:4] + struct.pack("<I", len(merged) - 8) + merged[8:]
+    try:
+        title_bytes = title.encode("utf-8") + b"\x00"
+        if len(title_bytes) % 2:
+            title_bytes += b"\x00"
+        inam = b"INAM" + struct.pack("<I", len(title_bytes)) + title_bytes
+        info = b"LIST" + struct.pack("<I", 4 + len(inam)) + b"INFO" + inam
+        pos = wav_bytes.index(b"data")
+        merged = wav_bytes[:pos] + info + wav_bytes[pos:]
+        return merged[:4] + struct.pack("<I", len(merged) - 8) + merged[8:]
+    except (ValueError, struct.error):
+        return wav_bytes
 
 
 def morse_to_wav(morse: str, wpm: int = DEFAULT_WPM, title: str = "") -> bytes:
@@ -144,17 +143,3 @@ def morse_to_wav(morse: str, wpm: int = DEFAULT_WPM, title: str = "") -> bytes:
     if title:
         wav_bytes = _inject_riff_info(wav_bytes, title)
     return wav_bytes
-
-
-def morse_to_mp3(morse: str, wpm: int = DEFAULT_WPM) -> bytes:
-    samples = _generate_samples(morse, wpm) if morse.strip() else [0] * SAMPLE_RATE
-    # interleave as stereo (L, R, L, R) — many HEOS devices reject mono MP3
-    stereo = [s for sample in samples for s in (sample, sample)]
-    pcm = struct.pack(f'<{len(stereo)}h', *stereo)
-
-    encoder = lameenc.Encoder()
-    encoder.set_bit_rate(128)
-    encoder.set_in_sample_rate(SAMPLE_RATE)
-    encoder.set_channels(2)
-    encoder.set_quality(2)
-    return bytes(encoder.encode(pcm) + encoder.flush())

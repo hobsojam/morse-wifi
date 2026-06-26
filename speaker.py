@@ -12,16 +12,22 @@ class SpeakerInfo:
 
 
 class Speaker(ABC):
-    preferred_format: str = "mp3"
+    preferred_format: str = "wav"
 
     @abstractmethod
-    def discover(self) -> list[SpeakerInfo]:
+    def discover(self) -> list["SpeakerInfo"]:
         ...
 
     @abstractmethod
-    def play_url(self, speaker: SpeakerInfo, url: str) -> None:
+    def play_url(self, speaker: "SpeakerInfo", url: str) -> None:
         ...
 
     @abstractmethod
-    def stop(self, speaker: SpeakerInfo) -> None:
+    def stop(self, speaker: "SpeakerInfo") -> None:
         ...
+
+    def get_transport_state(self, speaker: "SpeakerInfo") -> str:
+        return "unknown"
+
+    def get_debug_info(self, speaker: "SpeakerInfo") -> dict:
+        return {}

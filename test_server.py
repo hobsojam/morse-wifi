@@ -11,8 +11,6 @@ def server():
     yield s
     s.stop()
 
-# mp3 GET blocks while duration > 0; tests pass duration=0 (default) to stay fast
-
 
 class TestAudioServer:
     def test_starts_and_stops(self):

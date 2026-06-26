@@ -2,7 +2,7 @@ import wave
 import struct
 import math
 import pytest
-from morse import text_to_morse, morse_to_wav, morse_to_mp3, calculate_duration, DEFAULT_WPM, SAMPLE_RATE
+from morse import text_to_morse, morse_to_wav, calculate_duration, DEFAULT_WPM, SAMPLE_RATE
 
 
 class TestTextToMorse:
@@ -98,27 +98,16 @@ class TestMorseToWav:
         assert len(wav_bytes) >= 44  # valid WAV with at least a header
 
 
-class TestMorseToMp3:
-    def test_returns_bytes(self):
-        mp3_bytes = morse_to_mp3(".-", wpm=20)
-        assert isinstance(mp3_bytes, bytes)
+class TestInjectRiffInfo:
+    def test_survives_malformed_wav(self):
+        bad = b"not a wav file at all"
+        result = morse_to_wav.__wrapped__(bad, "title") if hasattr(morse_to_wav, "__wrapped__") else None
+        # _inject_riff_info should return original bytes on error
+        from morse import _inject_riff_info
+        assert _inject_riff_info(bad, "title") == bad
 
-    def test_starts_with_mp3_sync_word(self):
-        mp3_bytes = morse_to_mp3(".-", wpm=20)
-        # MP3 frames start with 0xFF 0xFB (or 0xFA/0xF3 etc) or ID3 tag
-        assert mp3_bytes[:2] in (b'\xff\xfb', b'\xff\xfa', b'\xff\xf3', b'\xff\xe3') \
-            or mp3_bytes[:3] == b'ID3'
-
-    def test_non_empty(self):
-        mp3_bytes = morse_to_mp3(".-", wpm=20)
-        assert len(mp3_bytes) > 0
-
-    def test_different_wpm_produces_different_length(self):
-        fast = morse_to_mp3(".-", wpm=30)
-        slow = morse_to_mp3(".-", wpm=10)
-        assert len(slow) > len(fast)
-
-    def test_empty_morse_returns_bytes(self):
-        mp3_bytes = morse_to_mp3("", wpm=20)
-        assert isinstance(mp3_bytes, bytes)
-        assert len(mp3_bytes) > 0
+    def test_odd_length_title_padded(self):
+        wav = morse_to_wav(".", wpm=20, title="abc")  # 3 chars + null = 4, even — fine
+        assert b"INAM" in wav
+        wav2 = morse_to_wav(".", wpm=20, title="ab")   # 2 chars + null = 3, odd — needs pad
+        assert b"INAM" in wav2

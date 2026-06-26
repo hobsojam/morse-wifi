@@ -1,5 +1,6 @@
 import html
 import socket
+import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -52,6 +53,22 @@ def _parse_device_description(xml_text: str, location_url: str) -> tuple[str, st
     return None
 
 
+def _didl_metadata(url: str) -> str:
+    """Return an XML-escaped DIDL-Lite block for a WAV audio item."""
+    inner = (
+        '<DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" '
+        'xmlns:dc="http://purl.org/dc/elements/1.1/" '
+        'xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/">'
+        '<item id="1" parentID="0" restricted="1">'
+        "<dc:title>morse-wifi</dc:title>"
+        "<upnp:class>object.item.audioItem</upnp:class>"
+        f'<res protocolInfo="http-get:*:audio/wav:DLNA.ORG_PN=LPCM;DLNA.ORG_OP=01">'
+        f"{html.escape(url)}</res>"
+        "</item></DIDL-Lite>"
+    )
+    return html.escape(inner)
+
+
 def _soap_action(control_url: str, action: str, body: str) -> None:
     envelope = (
         '<?xml version="1.0"?>'
@@ -68,8 +85,13 @@ def _soap_action(control_url: str, action: str, body: str) -> None:
             "SOAPAction": f'"{AVT_NS}#{action}"',
         },
     )
-    with urllib.request.urlopen(req, timeout=5) as resp:
-        resp.read()
+    try:
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            resp.read()
+    except urllib.error.HTTPError as exc:
+        raise RuntimeError(f"DLNA SOAP error {exc.code} on {action}: {exc.reason}") from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"DLNA unreachable during {action}: {exc.reason}") from exc
 
 
 class DlnaBackend(Speaker):
@@ -112,7 +134,7 @@ class DlnaBackend(Speaker):
             f'<u:SetAVTransportURI xmlns:u="{AVT_NS}">'
             "<InstanceID>0</InstanceID>"
             f"<CurrentURI>{safe_url}</CurrentURI>"
-            "<CurrentURIMetaData></CurrentURIMetaData>"
+            f"<CurrentURIMetaData>{_didl_metadata(url)}</CurrentURIMetaData>"
             "</u:SetAVTransportURI>",
         )
         _soap_action(

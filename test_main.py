@@ -100,22 +100,11 @@ class TestHandleCommand:
 
 
 class TestProcessInput:
-    def test_uses_mp3_for_network_backend(self):
+    def test_always_uses_wav(self):
         mock_backend = MagicMock()
-        mock_backend.preferred_format = "mp3"
         mock_server = MagicMock()
-        mock_server.url.return_value = "http://127.0.0.1:8080/audio"
-        state = {"busy_until": 0.0}
-        process_input("SOS", SPEAKERS[0], mock_backend, mock_server, wpm=20, state=state)
-        _, content_type = mock_server.set_audio.call_args.args
-        assert content_type == "audio/mpeg"
-
-    def test_uses_wav_for_local_backend(self):
-        mock_backend = MagicMock()
-        mock_backend.preferred_format = "wav"
-        mock_server = MagicMock()
-        mock_server.url.return_value = "http://127.0.0.1:8080/audio"
-        state = {"busy_until": 0.0}
+        mock_server.url.return_value = "http://127.0.0.1:8080/audio.wav"
+        state = {"busy_until": 0.0, "debug": False}
         process_input("SOS", SPEAKERS[0], mock_backend, mock_server, wpm=20, state=state)
         _, content_type = mock_server.set_audio.call_args.args
         assert content_type == "audio/wav"
@@ -126,7 +115,7 @@ class TestProcessInput:
         mock_server.url.return_value = "http://127.0.0.1:8080/audio.wav"
         speaker = SPEAKERS[0]
 
-        state = {"busy_until": 0.0}
+        state = {"busy_until": 0.0, "debug": False}
         process_input("SOS", speaker, mock_backend, mock_server, wpm=20, state=state)
 
         mock_server.set_audio.assert_called_once()
@@ -136,7 +125,7 @@ class TestProcessInput:
     def test_empty_input_ignored(self):
         mock_backend = MagicMock()
         mock_server = MagicMock()
-        state = {"busy_until": 0.0}
+        state = {"busy_until": 0.0, "debug": False}
         process_input("   ", SPEAKERS[0], mock_backend, mock_server, wpm=20, state=state)
         mock_backend.play_url.assert_not_called()
 
@@ -145,11 +134,20 @@ class TestProcessInput:
         mock_server = MagicMock()
         mock_server.url.return_value = "http://127.0.0.1:8080/audio.wav"
 
-        state = {"busy_until": time.monotonic() + 10.0}
+        state = {"busy_until": time.monotonic() + 10.0, "debug": False}
 
         with patch("time.sleep") as mock_sleep:
             process_input("HI", SPEAKERS[0], mock_backend, mock_server, wpm=20, state=state)
             mock_sleep.assert_called()
+
+    def test_title_is_original_text(self):
+        mock_backend = MagicMock()
+        mock_server = MagicMock()
+        mock_server.url.return_value = "http://127.0.0.1:8080/audio.wav"
+        state = {"busy_until": 0.0, "debug": False}
+        process_input("Hello", SPEAKERS[0], mock_backend, mock_server, wpm=20, state=state)
+        audio, _ = mock_server.set_audio.call_args.args
+        assert b"Hello" in audio  # RIFF INAM chunk contains original text
 
 
 class TestBackends:

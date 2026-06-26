@@ -160,6 +160,24 @@ class TestDlnaPlayUrl:
         assert m.call_args_list[0][0][0].full_url == CONTROL_URL
 
 
+class TestDlnaSoapErrors:
+    def test_http_error_raises_runtime_error(self):
+        import urllib.error
+        speaker = SpeakerInfo(id=CONTROL_URL, name="Test")
+        err = urllib.error.HTTPError(CONTROL_URL, 500, "Internal Server Error", {}, None)
+        with patch("dlna.urllib.request.urlopen", side_effect=err):
+            with pytest.raises(RuntimeError, match="SOAP error 500"):
+                DlnaBackend().play_url(speaker, "http://x/audio.wav")
+
+    def test_url_error_raises_runtime_error(self):
+        import urllib.error
+        speaker = SpeakerInfo(id=CONTROL_URL, name="Test")
+        err = urllib.error.URLError("Connection refused")
+        with patch("dlna.urllib.request.urlopen", side_effect=err):
+            with pytest.raises(RuntimeError, match="unreachable"):
+                DlnaBackend().play_url(speaker, "http://x/audio.wav")
+
+
 class TestDlnaStop:
     def test_sends_stop_action(self):
         speaker = SpeakerInfo(id=CONTROL_URL, name="Test")
