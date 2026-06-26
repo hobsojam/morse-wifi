@@ -1,21 +1,18 @@
 # morse-wifi
 
-A Windows console app that converts text to Morse code audio and plays it on wireless speakers via the HEOS protocol (Denon/Marantz multi-room audio systems).
+A cross-platform console app that converts text to Morse code audio and plays it on wireless speakers. Supports HEOS (Denon/Marantz), DLNA/UPnP, and local audio output.
 
 Type a line of text, hit Enter, and the Morse code beeps play on your chosen speaker within a second or two. You can keep typing while it plays — lines queue automatically.
 
 ## Requirements
 
 - Python 3.11+
-- A HEOS-compatible speaker (Denon or Marantz) on the same local network
-- `sounddevice` and `numpy` (for local audio output)
-- `pytest` (for running tests)
+- A speaker on the same local network (HEOS or any DLNA/UPnP MediaRenderer)
+- `lameenc`, `sounddevice`, `numpy` (installed via requirements.txt)
 
 ```
 pip install -r requirements-dev.txt
 ```
-
-No other third-party packages are required.
 
 ## Running
 
@@ -23,20 +20,17 @@ No other third-party packages are required.
 python main.py
 ```
 
-On startup the app discovers HEOS speakers on your network, lists them, and asks you to pick one. It then asks for a playback speed (WPM). After that you get a prompt and can start typing.
+On startup the app discovers speakers on your network, selects one automatically if only one is found, and asks for a playback speed. After that you get a prompt and can start typing.
 
 ```
 Discovering speakers via HEOS...
 
-Available speakers:
-  1. Living Room
-  2. Kitchen
-Select speaker number: 1
+Using speaker: Living Room
 
-WPM (default 20): 
+WPM (default 20):
 
 Ready. Sending to: Living Room at 20 WPM
-Commands: /wpm <n>  /backend heos|dlna  Ctrl+C to quit
+Commands: /wpm <n>  /backend heos|dlna|local  Ctrl+C to quit
 
 > SOS
 > Hello world
@@ -45,22 +39,23 @@ Commands: /wpm <n>  /backend heos|dlna  Ctrl+C to quit
 
 ### Command-line options
 
-```
-python main.py --backend heos    # default
-python main.py --backend local   # play on this PC's audio output (useful for testing)
-python main.py --backend dlna    # DLNA stub, not yet implemented
-```
+| Flag | Effect |
+|------|--------|
+| `--backend heos` | Use HEOS protocol (default) |
+| `--backend dlna` | Use DLNA/UPnP AV |
+| `--backend local` | Play on this PC's audio output |
+| `--debug` | Print Morse, URL, transport state for each transmission |
 
 ## Runtime commands
 
-Type these at the `>` prompt instead of text:
+Type these at the `>` prompt:
 
 | Command | Effect |
 |---------|--------|
 | `/wpm 15` | Change playback speed to 15 WPM |
-| `/backend heos` | Switch to HEOS backend and rediscover speakers |
+| `/backend heos` | Switch to HEOS and rediscover speakers |
+| `/backend dlna` | Switch to DLNA and rediscover speakers |
 | `/backend local` | Switch to local audio output |
-| `/backend dlna` | Switch to DLNA backend (not yet implemented) |
 
 ## What is WPM?
 
@@ -72,15 +67,25 @@ If you submit a second line before the first has finished playing, the app waits
 
 ## Architecture
 
-The speaker backend is pluggable. `speaker.py` defines an abstract `Speaker` interface with three methods:
+The speaker backend is pluggable. `speaker.py` defines an abstract `Speaker` interface:
 
 - `discover()` — find speakers on the network
 - `play_url(speaker, url)` — tell a speaker to stream a URL
 - `stop(speaker)` — stop playback
 
-`heos.py` implements this interface using SSDP discovery and the HEOS CLI protocol over TCP port 1255. `dlna.py` is a stub ready for a future DLNA/UPnP implementation. Switching backends at runtime with `/backend` re-runs discovery with the new backend.
+Three backends are implemented:
 
-Audio is generated in memory as a WAV file and served from a local HTTP server (`server.py`) so the speaker can fetch it by URL.
+| Backend | File | Protocol |
+|---------|------|----------|
+| HEOS | `heos.py` | SSDP discovery + HEOS CLI over TCP 1255 |
+| DLNA | `dlna.py` | SSDP discovery + UPnP AV SOAP (SetAVTransportURI / Play) |
+| Local | `local_beeper.py` | Plays WAV directly on the PC via `sounddevice` |
+
+Audio is generated in memory and served from a local HTTP server (`server.py`). The speaker fetches it by URL. WAV is used for HEOS and DLNA; the local backend also uses WAV.
+
+### HEOS notes
+
+The HEOS Bar (and similar soundbars) auto-switches audio to HDMI when a TV is on. The stream plays but the output is muted by the TV signal. Turn the TV off — or switch the Bar's input manually — to hear the Morse code.
 
 ## Running the tests
 
@@ -88,10 +93,4 @@ Audio is generated in memory as a WAV file and served from a local HTTP server (
 python -m pytest
 ```
 
-60 tests covering Morse generation, WAV encoding, the HTTP server, the speaker interface, HEOS protocol handling (with mocked network), and the main input loop.
-
-## Future work
-
-- DLNA/UPnP backend (implement `dlna.py`)
-- `/speaker` runtime command to switch speaker without restarting
-- Volume control
+108 tests covering Morse generation, WAV/MP3 encoding, the HTTP server, the speaker interface, HEOS protocol handling, DLNA SOAP/SSDP handling, and the main input loop. All network and audio I/O is mocked.
