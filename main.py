@@ -79,28 +79,43 @@ def handle_command(line: str, state: dict) -> bool:
 
 def _debug_poll_play_state(backend: Speaker, speaker: SpeakerInfo, timeout: float) -> None:
     from heos import HeosBackend
-    if not isinstance(backend, HeosBackend):
-        return
-    def _poll():
-        # Print volume, mute, and now-playing once before polling begins
-        vol = backend.get_volume(speaker)
-        mute = backend.get_mute(speaker)
-        media = backend.get_now_playing_media(speaker)
-        print(f"  [debug] volume: {vol}  muted: {mute}")
-        print(f"  [debug] now playing: {media}")
+    from dlna import DlnaBackend
 
+    if isinstance(backend, HeosBackend):
+        def _get_state() -> tuple[str, str]:
+            state, raw = backend.get_play_state(speaker)
+            return state, raw
+        def _preamble() -> None:
+            vol = backend.get_volume(speaker)
+            mute = backend.get_mute(speaker)
+            media = backend.get_now_playing_media(speaker)
+            print(f"  [debug] volume: {vol}  muted: {mute}")
+            print(f"  [debug] now playing: {media}")
+        terminal = {"stop", "error"}
+    elif isinstance(backend, DlnaBackend):
+        def _get_state() -> tuple[str, str]:
+            return backend.get_transport_state(speaker), ""
+        def _preamble() -> None:
+            pass
+        terminal = {"stopped", "error"}
+    else:
+        return
+
+    def _poll():
+        _preamble()
         deadline = time.monotonic() + timeout + 5.0
         elapsed = 0
         while time.monotonic() < deadline:
             time.sleep(1.0)
             elapsed += 1
             try:
-                state, raw = backend.get_play_state(speaker)
+                state, raw = _get_state()
             except Exception as exc:
                 print(f"  [debug] play state at {elapsed}s: error ({exc})")
                 return
-            print(f"  [debug] play state at {elapsed}s: {state}  raw: {raw}")
-            if state in ("stop", "error"):
+            suffix = f"  raw: {raw}" if raw else ""
+            print(f"  [debug] play state at {elapsed}s: {state}{suffix}")
+            if state in terminal:
                 return
     threading.Thread(target=_poll, daemon=True).start()
 

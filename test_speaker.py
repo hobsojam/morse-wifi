@@ -56,17 +56,9 @@ class TestSpeakerDefaults:
         assert Concrete().preferred_format == "mp3"
 
 
-class TestDlnaStub:
-    def test_discover_raises_not_implemented(self):
-        with pytest.raises(NotImplementedError):
-            DlnaBackend().discover()
+class TestDlnaBackend:
+    def test_is_a_speaker(self):
+        assert isinstance(DlnaBackend(), Speaker)
 
-    def test_play_url_raises_not_implemented(self):
-        info = SpeakerInfo(id="x", name="X")
-        with pytest.raises(NotImplementedError):
-            DlnaBackend().play_url(info, "http://example.com/audio.wav")
-
-    def test_stop_raises_not_implemented(self):
-        info = SpeakerInfo(id="x", name="X")
-        with pytest.raises(NotImplementedError):
-            DlnaBackend().stop(info)
+    def test_preferred_format_is_wav(self):
+        assert DlnaBackend.preferred_format == "wav"
