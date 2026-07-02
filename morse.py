@@ -49,38 +49,35 @@ def _dot_duration(wpm: int) -> float:
     return 1.2 / wpm
 
 
-def calculate_duration(morse: str, wpm: int = DEFAULT_WPM) -> float:
+def _timing_elements(morse: str, wpm: int):
+    """Yield ('tone' | 'gap', duration_seconds) for each element of a morse string."""
     dot = _dot_duration(wpm)
     dash = dot * 3
     symbol_gap = dot
     letter_gap = dot * 3
     word_gap = dot * 7
 
-    total = 0.0
     tokens = morse.split(' ')
     for i, token in enumerate(tokens):
         if token == '/':
-            total += word_gap
+            yield 'gap', word_gap
             continue
         for j, symbol in enumerate(token):
             if symbol == '.':
-                total += dot
+                yield 'tone', dot
             elif symbol == '-':
-                total += dash
+                yield 'tone', dash
             if j < len(token) - 1:
-                total += symbol_gap
+                yield 'gap', symbol_gap
         if i < len(tokens) - 1 and tokens[i + 1] != '/':
-            total += letter_gap
-    return total
+            yield 'gap', letter_gap
+
+
+def calculate_duration(morse: str, wpm: int = DEFAULT_WPM) -> float:
+    return sum(duration for _, duration in _timing_elements(morse, wpm))
 
 
 def _generate_samples(morse: str, wpm: int) -> list[int]:
-    dot = _dot_duration(wpm)
-    dash = dot * 3
-    symbol_gap = dot
-    letter_gap = dot * 3
-    word_gap = dot * 7
-
     def tone(duration: float) -> list[int]:
         n = int(SAMPLE_RATE * duration)
         fade = min(int(SAMPLE_RATE * 0.005), n // 4)
@@ -99,20 +96,8 @@ def _generate_samples(morse: str, wpm: int) -> list[int]:
         return [0] * int(SAMPLE_RATE * duration)
 
     samples: list[int] = []
-    tokens = morse.split(' ')
-    for i, token in enumerate(tokens):
-        if token == '/':
-            samples += silence(word_gap)
-            continue
-        for j, symbol in enumerate(token):
-            if symbol == '.':
-                samples += tone(dot)
-            elif symbol == '-':
-                samples += tone(dash)
-            if j < len(token) - 1:
-                samples += silence(symbol_gap)
-        if i < len(tokens) - 1 and tokens[i + 1] != '/':
-            samples += silence(letter_gap)
+    for kind, duration in _timing_elements(morse, wpm):
+        samples += tone(duration) if kind == 'tone' else silence(duration)
     return samples
 
 

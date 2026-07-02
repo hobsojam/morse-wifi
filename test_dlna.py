@@ -165,17 +165,19 @@ class TestDlnaSoapErrors:
         import urllib.error
         speaker = SpeakerInfo(id=CONTROL_URL, name="Test")
         err = urllib.error.HTTPError(CONTROL_URL, 500, "Internal Server Error", {}, None)
+        backend = DlnaBackend()
         with patch("dlna.urllib.request.urlopen", side_effect=err):
             with pytest.raises(RuntimeError, match="SOAP error 500"):
-                DlnaBackend().play_url(speaker, "http://x/audio.wav")
+                backend.play_url(speaker, "http://x/audio.wav")
 
     def test_url_error_raises_runtime_error(self):
         import urllib.error
         speaker = SpeakerInfo(id=CONTROL_URL, name="Test")
         err = urllib.error.URLError("Connection refused")
+        backend = DlnaBackend()
         with patch("dlna.urllib.request.urlopen", side_effect=err):
             with pytest.raises(RuntimeError, match="unreachable"):
-                DlnaBackend().play_url(speaker, "http://x/audio.wav")
+                backend.play_url(speaker, "http://x/audio.wav")
 
 
 class TestDlnaStop:

@@ -131,7 +131,7 @@ def process_input(
     if state.get("debug"):
         print(f"  [debug] morse:        {morse}")
         print(f"  [debug] url:          {url}")
-        print(f"  [debug] content-type: audio/wav")
+        print("  [debug] content-type: audio/wav")
     server.set_audio(audio, "audio/wav")
     backend.play_url(speaker, url)
     state["busy_until"] = time.monotonic() + duration
