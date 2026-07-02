@@ -4,6 +4,10 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 
 def _local_ip() -> str:
+    # Determine the LAN IP of this machine by asking the OS which local
+    # interface it would route through to reach a public address (Google DNS,
+    # 8.8.8.8). connect() on a UDP socket sends no packets — any routable
+    # public IP would work here; 8.8.8.8 is just a stable, well-known choice.
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
         s.connect(("8.8.8.8", 80))
         return s.getsockname()[0]
@@ -72,6 +76,10 @@ class AudioServer:
                 if server._debug:
                     print(f"  [debug] http: {self.client_address[0]} {format % args}")
 
+        # Bind to all interfaces (0.0.0.0): the speaker is a separate device
+        # on the LAN and must be able to fetch audio from this server, so
+        # binding to loopback would break playback. While running, any host
+        # on the local network can fetch the currently loaded audio.
         self._httpd = HTTPServer(("0.0.0.0", self._port), Handler)
         self._thread = threading.Thread(target=self._httpd.serve_forever, daemon=True)
         self._thread.start()
