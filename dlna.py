@@ -42,15 +42,17 @@ def _parse_device_description(xml_text: str, location_url: str) -> tuple[str, st
 
         for service in root.findall(".//{*}service"):
             st = service.find("{*}serviceType")
+            if st is None or "AVTransport" not in (st.text or ""):
+                continue
             cu = service.find("{*}controlURL")
-            if st is not None and "AVTransport" in (st.text or ""):
-                if cu is not None and cu.text:
-                    control_url = cu.text.strip()
-                    if not control_url.startswith("http"):
-                        parsed = urllib.parse.urlparse(location_url)
-                        prefix = "/" if not control_url.startswith("/") else ""
-                        control_url = f"{parsed.scheme}://{parsed.netloc}{prefix}{control_url}"
-                    return name, control_url
+            if cu is None or not cu.text:
+                continue
+            control_url = cu.text.strip()
+            if not control_url.startswith("http"):
+                parsed = urllib.parse.urlparse(location_url)
+                prefix = "/" if not control_url.startswith("/") else ""
+                control_url = f"{parsed.scheme}://{parsed.netloc}{prefix}{control_url}"
+            return name, control_url
     except Exception:
         pass
     return None

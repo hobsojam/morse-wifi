@@ -101,7 +101,6 @@ class TestMorseToWav:
 class TestInjectRiffInfo:
     def test_survives_malformed_wav(self):
         bad = b"not a wav file at all"
-        result = morse_to_wav.__wrapped__(bad, "title") if hasattr(morse_to_wav, "__wrapped__") else None
         # _inject_riff_info should return original bytes on error
         from morse import _inject_riff_info
         assert _inject_riff_info(bad, "title") == bad
