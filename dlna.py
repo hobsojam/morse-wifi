@@ -7,6 +7,9 @@ import xml.etree.ElementTree as ET
 
 from speaker import Speaker, SpeakerInfo
 
+# Standard SSDP multicast address and port fixed by the UPnP specification;
+# all UPnP/DLNA devices listen here for discovery. Local-scope multicast —
+# never routed beyond the LAN.
 SSDP_ADDR = "239.255.255.250"
 SSDP_PORT = 1900
 SSDP_MX = 3

@@ -5,6 +5,9 @@ import urllib.parse
 from speaker import Speaker, SpeakerInfo
 
 HEOS_PORT = 1255
+# Standard SSDP multicast address and port fixed by the UPnP specification;
+# HEOS devices listen here for discovery. Local-scope multicast — never
+# routed beyond the LAN.
 SSDP_ADDR = "239.255.255.250"
 SSDP_PORT = 1900
 SSDP_MX = 3
