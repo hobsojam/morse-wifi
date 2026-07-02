@@ -4,9 +4,14 @@ from unittest.mock import patch, MagicMock
 from speaker import SpeakerInfo
 from dlna import DlnaBackend, _extract_location, _parse_device_description
 
+BASE_URL = "http://192.168.1.100:8060"
+DESC_URL = f"{BASE_URL}/desc.xml"
+CONTROL_URL = f"{BASE_URL}/upnp/control/AVTransport1"
+SSDP_ADDR = ("192.168.1.100", 1900)
+
 SAMPLE_SSDP_RESPONSE = (
     "HTTP/1.1 200 OK\r\n"
-    "LOCATION: http://192.168.1.100:8060/desc.xml\r\n"
+    f"LOCATION: {DESC_URL}\r\n"
     "ST: urn:schemas-upnp-org:device:MediaRenderer:1\r\n"
     "\r\n"
 )
@@ -24,9 +29,6 @@ SAMPLE_DESCRIPTION_XML = """<?xml version="1.0"?>
   </device>
 </root>"""
 
-CONTROL_URL = "http://192.168.1.100:8060/upnp/control/AVTransport1"
-
-
 def _url_mock(content: bytes | str) -> MagicMock:
     if isinstance(content, str):
         content = content.encode()
@@ -43,7 +45,7 @@ def _soap_mock() -> MagicMock:
 
 class TestExtractLocation:
     def test_parses_location_header(self):
-        assert _extract_location(SAMPLE_SSDP_RESPONSE) == "http://192.168.1.100:8060/desc.xml"
+        assert _extract_location(SAMPLE_SSDP_RESPONSE) == DESC_URL
 
     def test_returns_none_when_absent(self):
         assert _extract_location("HTTP/1.1 200 OK\r\n\r\n") is None
@@ -54,20 +56,20 @@ class TestExtractLocation:
 
 class TestParseDeviceDescription:
     def test_extracts_name_and_control_url(self):
-        result = _parse_device_description(SAMPLE_DESCRIPTION_XML, "http://192.168.1.100:8060/desc.xml")
+        result = _parse_device_description(SAMPLE_DESCRIPTION_XML, DESC_URL)
         assert result == ("Living Room Speaker", CONTROL_URL)
 
     def test_relative_control_url_made_absolute(self):
-        result = _parse_device_description(SAMPLE_DESCRIPTION_XML, "http://192.168.1.100:8060/desc.xml")
+        result = _parse_device_description(SAMPLE_DESCRIPTION_XML, DESC_URL)
         assert result is not None
         _, url = result
-        assert url.startswith("http://192.168.1.100:8060")
+        assert url.startswith(BASE_URL)
 
     def test_absolute_control_url_unchanged(self):
         xml = SAMPLE_DESCRIPTION_XML.replace(
             "/upnp/control/AVTransport1", "http://10.0.0.1:9000/avt"
         )
-        result = _parse_device_description(xml, "http://192.168.1.100:8060/desc.xml")
+        result = _parse_device_description(xml, DESC_URL)
         assert result is not None
         assert result[1] == "http://10.0.0.1:9000/avt"
 
@@ -85,7 +87,7 @@ class TestDlnaDiscover:
     def test_returns_speakers_from_ssdp(self):
         mock_sock = MagicMock()
         mock_sock.recvfrom.side_effect = [
-            (SAMPLE_SSDP_RESPONSE.encode(), ("192.168.1.100", 1900)),
+            (SAMPLE_SSDP_RESPONSE.encode(), SSDP_ADDR),
             socket.timeout(),
         ]
         with patch("dlna.socket.socket", return_value=mock_sock):
@@ -107,7 +109,7 @@ class TestDlnaDiscover:
         </root>"""
         mock_sock = MagicMock()
         mock_sock.recvfrom.side_effect = [
-            (SAMPLE_SSDP_RESPONSE.encode(), ("192.168.1.100", 1900)),
+            (SAMPLE_SSDP_RESPONSE.encode(), SSDP_ADDR),
             socket.timeout(),
         ]
         with patch("dlna.socket.socket", return_value=mock_sock):
@@ -117,8 +119,8 @@ class TestDlnaDiscover:
     def test_deduplicates_locations(self):
         mock_sock = MagicMock()
         mock_sock.recvfrom.side_effect = [
-            (SAMPLE_SSDP_RESPONSE.encode(), ("192.168.1.100", 1900)),
-            (SAMPLE_SSDP_RESPONSE.encode(), ("192.168.1.100", 1900)),
+            (SAMPLE_SSDP_RESPONSE.encode(), SSDP_ADDR),
+            (SAMPLE_SSDP_RESPONSE.encode(), SSDP_ADDR),
             socket.timeout(),
         ]
         with patch("dlna.socket.socket", return_value=mock_sock):
