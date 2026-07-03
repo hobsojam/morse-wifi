@@ -21,6 +21,7 @@ def make_wav(num_frames: int = 100, sample_rate: int = 44100) -> bytes:
 
 
 DUMMY_WAV = make_wav()
+AUDIO_URL = "http://127.0.0.1:8080/audio.wav"
 
 
 class TestWavBytesToArray:
@@ -70,16 +71,16 @@ class TestLocalBeeperPlayUrl:
         speaker = SpeakerInfo(id="local", name="Local Beeper")
         with patch("urllib.request.urlopen", return_value=self._mock_response()) as mock_open, \
              patch("sounddevice.play") as mock_play:
-            LocalBeeper().play_url(speaker, "http://127.0.0.1:8080/audio.wav")
+            LocalBeeper().play_url(speaker, AUDIO_URL)
 
-        mock_open.assert_called_once_with("http://127.0.0.1:8080/audio.wav")
+        mock_open.assert_called_once_with(AUDIO_URL)
         mock_play.assert_called_once()
 
     def test_passes_correct_sample_rate(self):
         speaker = SpeakerInfo(id="local", name="Local Beeper")
         with patch("urllib.request.urlopen", return_value=self._mock_response()), \
              patch("sounddevice.play") as mock_play:
-            LocalBeeper().play_url(speaker, "http://127.0.0.1:8080/audio.wav")
+            LocalBeeper().play_url(speaker, AUDIO_URL)
 
         assert mock_play.call_args.kwargs["samplerate"] == 44100
 
@@ -87,7 +88,7 @@ class TestLocalBeeperPlayUrl:
         speaker = SpeakerInfo(id="local", name="Local Beeper")
         with patch("urllib.request.urlopen", return_value=self._mock_response()), \
              patch("sounddevice.play") as mock_play:
-            LocalBeeper().play_url(speaker, "http://127.0.0.1:8080/audio.wav")
+            LocalBeeper().play_url(speaker, AUDIO_URL)
 
         audio_arg = mock_play.call_args.args[0]
         assert isinstance(audio_arg, np.ndarray)

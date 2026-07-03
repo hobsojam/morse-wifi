@@ -16,6 +16,8 @@ SPEAKERS = [
     SpeakerInfo(id="2", name="Kitchen"),
 ]
 
+AUDIO_URL = "http://127.0.0.1:8080/audio.wav"
+
 
 class TestSelectSpeaker:
     def test_single_speaker_auto_selected(self):
@@ -103,7 +105,7 @@ class TestProcessInput:
     def test_always_uses_wav(self):
         mock_backend = MagicMock()
         mock_server = MagicMock()
-        mock_server.url.return_value = "http://127.0.0.1:8080/audio.wav"
+        mock_server.url.return_value = AUDIO_URL
         state = {"busy_until": 0.0, "debug": False}
         process_input("SOS", SPEAKERS[0], mock_backend, mock_server, wpm=20, state=state)
         _, content_type = mock_server.set_audio.call_args.args
@@ -112,14 +114,14 @@ class TestProcessInput:
     def test_schedules_play(self):
         mock_backend = MagicMock()
         mock_server = MagicMock()
-        mock_server.url.return_value = "http://127.0.0.1:8080/audio.wav"
+        mock_server.url.return_value = AUDIO_URL
         speaker = SPEAKERS[0]
 
         state = {"busy_until": 0.0, "debug": False}
         process_input("SOS", speaker, mock_backend, mock_server, wpm=20, state=state)
 
         mock_server.set_audio.assert_called_once()
-        mock_backend.play_url.assert_called_once_with(speaker, "http://127.0.0.1:8080/audio.wav")
+        mock_backend.play_url.assert_called_once_with(speaker, AUDIO_URL)
         assert state["busy_until"] > time.monotonic()
 
     def test_empty_input_ignored(self):
@@ -132,7 +134,7 @@ class TestProcessInput:
     def test_queues_when_busy(self):
         mock_backend = MagicMock()
         mock_server = MagicMock()
-        mock_server.url.return_value = "http://127.0.0.1:8080/audio.wav"
+        mock_server.url.return_value = AUDIO_URL
 
         state = {"busy_until": time.monotonic() + 10.0, "debug": False}
 
@@ -143,7 +145,7 @@ class TestProcessInput:
     def test_title_is_original_text(self):
         mock_backend = MagicMock()
         mock_server = MagicMock()
-        mock_server.url.return_value = "http://127.0.0.1:8080/audio.wav"
+        mock_server.url.return_value = AUDIO_URL
         state = {"busy_until": 0.0, "debug": False}
         process_input("Hello", SPEAKERS[0], mock_backend, mock_server, wpm=20, state=state)
         audio, _ = mock_server.set_audio.call_args.args

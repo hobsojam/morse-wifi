@@ -8,6 +8,7 @@ BASE_URL = "http://192.168.1.100:8060"
 DESC_URL = f"{BASE_URL}/desc.xml"
 CONTROL_URL = f"{BASE_URL}/upnp/control/AVTransport1"
 SSDP_ADDR = ("192.168.1.100", 1900)
+AUDIO_URL = "http://192.168.1.50:1234/audio.wav"
 
 SAMPLE_SSDP_RESPONSE = (
     "HTTP/1.1 200 OK\r\n"
@@ -133,7 +134,7 @@ class TestDlnaPlayUrl:
     def test_sends_set_uri_then_play(self):
         speaker = SpeakerInfo(id=CONTROL_URL, name="Test")
         with patch("dlna.urllib.request.urlopen", return_value=_soap_mock()) as m:
-            DlnaBackend().play_url(speaker, "http://192.168.1.50:1234/audio.wav")
+            DlnaBackend().play_url(speaker, AUDIO_URL)
         assert m.call_count == 2
         first = m.call_args_list[0][0][0]
         second = m.call_args_list[1][0][0]
@@ -143,9 +144,9 @@ class TestDlnaPlayUrl:
     def test_url_embedded_in_set_uri_body(self):
         speaker = SpeakerInfo(id=CONTROL_URL, name="Test")
         with patch("dlna.urllib.request.urlopen", return_value=_soap_mock()) as m:
-            DlnaBackend().play_url(speaker, "http://192.168.1.50:1234/audio.wav")
+            DlnaBackend().play_url(speaker, AUDIO_URL)
         body = m.call_args_list[0][0][0].data.decode()
-        assert "http://192.168.1.50:1234/audio.wav" in body
+        assert AUDIO_URL in body
 
     def test_url_with_ampersand_is_escaped(self):
         speaker = SpeakerInfo(id=CONTROL_URL, name="Test")
