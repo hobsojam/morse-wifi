@@ -6,9 +6,12 @@ from unittest.mock import patch, MagicMock, call
 from heos import HeosBackend, _parse_players, _build_command, HEOS_PORT
 
 
+DEVICE_IP = "192.168.1.50"
+AUDIO_URL = "http://192.168.1.1:8080/audio.wav"
+
 SAMPLE_SSDP_RESPONSE = (
     "HTTP/1.1 200 OK\r\n"
-    "LOCATION: http://192.168.1.50:60006/upnp/desc/aios_device/aios_device.xml\r\n"
+    f"LOCATION: http://{DEVICE_IP}:60006/upnp/desc/aios_device/aios_device.xml\r\n"
     "ST: urn:schemas-denon-com:device:ACT-Denon:1\r\n"
     "\r\n"
 )
@@ -64,7 +67,7 @@ class TestHeosDiscover:
     def test_discover_returns_speakers(self):
         mock_sock = MagicMock()
         mock_sock.recvfrom.side_effect = [
-            (SAMPLE_SSDP_RESPONSE.encode(), ("192.168.1.50", 1900)),
+            (SAMPLE_SSDP_RESPONSE.encode(), (DEVICE_IP, 1900)),
             socket.timeout(),
         ]
 
@@ -110,13 +113,13 @@ class TestHeosPlayUrl:
         tcp = self._make_tcp_mock(SAMPLE_PLAY_RESPONSE)
 
         with patch("heos.socket.socket", return_value=tcp):
-            backend = HeosBackend(device_ip="192.168.1.50")
-            backend.play_url(info, "http://192.168.1.1:8080/audio.wav")
+            backend = HeosBackend(device_ip=DEVICE_IP)
+            backend.play_url(info, AUDIO_URL)
 
         sent = tcp.sendall.call_args[0][0].decode()
         assert "player/play_stream" in sent
         assert "pid=1" in sent
-        assert "http://192.168.1.1:8080/audio.wav" in sent
+        assert AUDIO_URL in sent
 
     def test_play_url_raises_on_heos_error(self):
         from speaker import SpeakerInfo
@@ -128,9 +131,9 @@ class TestHeosPlayUrl:
         tcp = self._make_tcp_mock(error_response)
 
         with patch("heos.socket.socket", return_value=tcp):
-            backend = HeosBackend(device_ip="192.168.1.50")
+            backend = HeosBackend(device_ip=DEVICE_IP)
             with pytest.raises(RuntimeError, match="HEOS error"):
-                backend.play_url(info, "http://192.168.1.1:8080/audio.wav")
+                backend.play_url(info, AUDIO_URL)
 
     def test_get_play_state_returns_state(self):
         from speaker import SpeakerInfo
@@ -141,7 +144,7 @@ class TestHeosPlayUrl:
         })
         tcp = self._make_tcp_mock(response)
         with patch("heos.socket.socket", return_value=tcp):
-            state, raw = HeosBackend(device_ip="192.168.1.50").get_play_state(info)
+            state, raw = HeosBackend(device_ip=DEVICE_IP).get_play_state(info)
         assert state == "play"
         assert "play" in raw
 
@@ -151,7 +154,7 @@ class TestHeosPlayUrl:
         tcp = self._make_tcp_mock(SAMPLE_STOP_RESPONSE)
 
         with patch("heos.socket.socket", return_value=tcp):
-            backend = HeosBackend(device_ip="192.168.1.50")
+            backend = HeosBackend(device_ip=DEVICE_IP)
             backend.stop(info)
 
         sent = tcp.sendall.call_args[0][0].decode()
