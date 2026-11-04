@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system audio library (sounddevice/PortAudio dependency)
+        run: sudo apt-get update && sudo apt-get install -y libportaudio2
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt pip-audit
+
+      - name: Audit dependencies for known CVEs
+        run: pip-audit -r requirements.txt -r requirements-dev.txt
+
+      - name: Run tests
+        run: pytest
