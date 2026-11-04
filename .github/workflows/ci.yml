@@ -12,7 +12,15 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install system audio library (sounddevice/PortAudio dependency)
-        run: sudo apt-get update && sudo apt-get install -y libportaudio2
+        run: sudo apt-get update && sudo apt-get install -y libportaudio2 pulseaudio
+
+      - name: Start a dummy PulseAudio server with a null sink
+        # sounddevice calls PortAudio's Pa_Initialize() at import time, which
+        # needs a reachable audio server even though these tests never play
+        # sound for real — there's no audio hardware on the runner otherwise.
+        run: |
+          pulseaudio --start --exit-idle-time=-1
+          pactl load-module module-null-sink
 
       - uses: actions/setup-python@v5
         with:
